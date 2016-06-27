@@ -18,6 +18,7 @@ class Adafruit_StepperMotor:
 		self.sec_per_step = 0.1
 		self.steppingcounter = 0
 		self.currentstep = 0
+		self.stop_stepper = False
 
 		num -= 1
 
@@ -47,7 +48,7 @@ class Adafruit_StepperMotor:
 
 		# first determine what sort of stepping procedure we're up to
 		if (style == Adafruit_MotorHAT.SINGLE):
-    			if ((self.currentstep/(self.MICROSTEPS/2)) % 2): 
+    		if ((self.currentstep/(self.MICROSTEPS/2)) % 2): 
 				# we're at an odd step, weird
 				if (dir == Adafruit_MotorHAT.FORWARD):
 					self.currentstep += self.MICROSTEPS/2
@@ -84,9 +85,9 @@ class Adafruit_StepperMotor:
 			else:
 				self.currentstep -= 1
 
-                	# go to next 'step' and wrap around
-                	self.currentstep += self.MICROSTEPS * 4
-                	self.currentstep %= self.MICROSTEPS * 4
+			# go to next 'step' and wrap around
+			self.currentstep += self.MICROSTEPS * 4
+			self.currentstep %= self.MICROSTEPS * 4
 
 			pwm_a = pwm_b = 0
 			if (self.currentstep >= 0) and (self.currentstep < self.MICROSTEPS):
@@ -99,8 +100,8 @@ class Adafruit_StepperMotor:
 				pwm_a = self.MICROSTEP_CURVE[self.MICROSTEPS*3 - self.currentstep]
 				pwm_b = self.MICROSTEP_CURVE[self.currentstep - self.MICROSTEPS*2]
 			elif (self.currentstep >= self.MICROSTEPS*3) and (self.currentstep < self.MICROSTEPS*4):
-                                pwm_a = self.MICROSTEP_CURVE[self.currentstep - self.MICROSTEPS*3]
-                                pwm_b = self.MICROSTEP_CURVE[self.MICROSTEPS*4 - self.currentstep]
+				pwm_a = self.MICROSTEP_CURVE[self.currentstep - self.MICROSTEPS*3]
+				pwm_b = self.MICROSTEP_CURVE[self.MICROSTEPS*4 - self.currentstep]
 
 
 		# go to next 'step' and wrap around
@@ -117,11 +118,11 @@ class Adafruit_StepperMotor:
 		if (style == Adafruit_MotorHAT.MICROSTEP):
 			if (self.currentstep >= 0) and (self.currentstep < self.MICROSTEPS):
 				coils = [1, 1, 0, 0]
-                        elif (self.currentstep >= self.MICROSTEPS) and (self.currentstep < self.MICROSTEPS*2):
+            elif (self.currentstep >= self.MICROSTEPS) and (self.currentstep < self.MICROSTEPS*2):
 				coils = [0, 1, 1, 0]
-                        elif (self.currentstep >= self.MICROSTEPS*2) and (self.currentstep < self.MICROSTEPS*3):
+            elif (self.currentstep >= self.MICROSTEPS*2) and (self.currentstep < self.MICROSTEPS*3):
 				coils = [0, 0, 1, 1]
-                        elif (self.currentstep >= self.MICROSTEPS*3) and (self.currentstep < self.MICROSTEPS*4):
+            elif (self.currentstep >= self.MICROSTEPS*3) and (self.currentstep < self.MICROSTEPS*4):
 				coils = [1, 0, 0, 1]
 		else:
 			step2coils = [ 	[1, 0, 0, 0], 
@@ -132,6 +133,10 @@ class Adafruit_StepperMotor:
 				[0, 0, 1, 1],
 				[0, 0, 0, 1],
 				[1, 0, 0, 1] ]
+			if (dir == Adafruit_MotorHAT.FORWARD):
+				prev_coil = step2coils[(self.currentstep/(self.MICROSTEPS/2) - coil_steps) % len(step2coils)]
+			else:
+				prev_coil = step2coils[(self.currentstep/(self.MICROSTEPS/2) + coil_steps) % len(step2coils)]
 			coils = step2coils[self.currentstep/(self.MICROSTEPS/2)]
 
 		#print "coils state = " + str(coils)
@@ -143,6 +148,7 @@ class Adafruit_StepperMotor:
 		return self.currentstep
 
 	def step(self, steps, direction, stepstyle):
+		self.stop_stepper = False
 		s_per_s = self.sec_per_step
 		lateststep = 0
 		
@@ -154,9 +160,20 @@ class Adafruit_StepperMotor:
 
 		print s_per_s, " sec per step"
 
+		steps_done = 0
 		for s in range(steps):
-			lateststep = self.oneStep(direction, stepstyle)
-			time.sleep(s_per_s)
+			if not self.stop_stepper:
+				start_time = time.time()
+				lateststep = self.oneStep(direction, stepstyle)
+				try:
+					#Compensate for the used time in execution
+					time.sleep(s_per_s - (time.time() - self.start_time))
+				except:
+					pass
+				steps_done = lateststep
+			else:
+				steps_done = s - 1
+				break
 
 		if (stepstyle == Adafruit_MotorHAT.MICROSTEP):
 			# this is an edge case, if we are in between full steps, lets just keep going
@@ -164,6 +181,10 @@ class Adafruit_StepperMotor:
 			while (lateststep != 0) and (lateststep != self.MICROSTEPS):
 				lateststep = self.oneStep(dir, stepstyle)
 				time.sleep(s_per_s)
+				
+		if self.stop_stepper:
+			self.stop_stepper = False
+		return steps_done
 		
 class Adafruit_DCMotor:
 	def __init__(self, controller, num):
