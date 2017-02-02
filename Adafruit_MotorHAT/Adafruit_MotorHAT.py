@@ -46,8 +46,8 @@ class Adafruit_StepperMotor:
 
         # first determine what sort of stepping procedure we're up to
         if (style == Adafruit_MotorHAT.SINGLE):
-            if ((self.currentstep/(self.MICROSTEPS/2)) % 2): 
-            	# we're at an odd step, weird
+            if ((self.currentstep/(self.MICROSTEPS/2)) % 2):
+                # we're at an odd step, weird
                 if (dir == Adafruit_MotorHAT.FORWARD):
                     self.currentstep += self.MICROSTEPS/2
                 else:
@@ -130,7 +130,7 @@ class Adafruit_StepperMotor:
                 [0, 0, 1, 1],
                 [0, 0, 0, 1],
                 [1, 0, 0, 1] ]
-            coils = step2coils[self.currentstep/(self.MICROSTEPS/2)]
+            coils = step2coils[int(self.currentstep/(self.MICROSTEPS/2))]
 
         #print "coils state = " + str(coils)
         self.MC.setPin(self.AIN2, coils[0])
