@@ -182,21 +182,21 @@ class Adafruit_DCMotor:
         pwm = in1 = in2 = 0
 
         if num == 0:
-                 pwm = 8
-                 in2 = 9
-                 in1 = 10
+            pwm = 8
+            in2 = 9
+            in1 = 10
         elif num == 1:
-                 pwm = 13
-                 in2 = 12
-                 in1 = 11
+            pwm = 13
+            in2 = 12
+            in1 = 11
         elif num == 2:
-                 pwm = 2
-                 in2 = 3
-                 in1 = 4
+            pwm = 2
+            in2 = 3
+            in1 = 4
         elif num == 3:
-                 pwm = 7
-                 in2 = 6
-                 in1 = 5
+            pwm = 7
+            in2 = 6
+            in1 = 5
         else:
             raise NameError('MotorHAT Motor must be between 1 and 4 inclusive')
             
@@ -236,10 +236,9 @@ class Adafruit_MotorHAT:
     INTERLEAVE = 3
     MICROSTEP = 4
 
-    def __init__(self, addr = 0x60, freq = 1600, i2c=None, i2c_bus=None):
+    def __init__(self, addr=0x60, freq=1600, i2c=None, i2c_bus=None):
         self._frequency = freq
-        self.motors = [ Adafruit_DCMotor(self, m) for m in range(4) ]
-        self.steppers = [ Adafruit_StepperMotor(self, 1), Adafruit_StepperMotor(self, 2) ]
+        self.motors = [Adafruit_DCMotor(self, m) for m in range(4)]
         self._pwm = PWM(addr, debug=False, i2c=i2c, i2c_bus=i2c_bus)
         self._pwm.setPWMFreq(self._frequency)
 
@@ -256,7 +255,7 @@ class Adafruit_MotorHAT:
     def getStepper(self, steps, num):
         if (num < 1) or (num > 2):
             raise NameError('MotorHAT Stepper must be between 1 and 2 inclusive')
-        return self.steppers[num-1]
+        return Adafruit_StepperMotor(self, num, steps)
 
     def getMotor(self, num):
         if (num < 1) or (num > 4):
