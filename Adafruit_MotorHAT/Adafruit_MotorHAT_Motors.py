@@ -21,14 +21,14 @@ class Adafruit_StepperMotor:
 
         num -= 1
 
-        if (num == 0):
+        if num == 0:
             self.PWMA = 8
             self.AIN2 = 9
             self.AIN1 = 10
             self.PWMB = 13
             self.BIN2 = 12
             self.BIN1 = 11
-        elif (num == 1):
+        elif num == 1:
             self.PWMA = 2
             self.AIN2 = 3
             self.AIN1 = 4
@@ -45,41 +45,47 @@ class Adafruit_StepperMotor:
     def oneStep(self, dir, style):
         pwm_a = pwm_b = 255
 
+        half_microstep = self.MICROSTEPS//2
+        is_at_odd_step = self.currentstep//(half_microstep) % 2
+        is_at_even_step = not is_at_odd_step
+        is_forward = dir == Adafruit_MotorHAT.FORWARD
+
         # first determine what sort of stepping procedure we're up to
-        if (style == Adafruit_MotorHAT.SINGLE):
-            if ((self.currentstep//(self.MICROSTEPS//2)) % 2):
+        if style == Adafruit_MotorHAT.SINGLE:
+            if is_at_odd_step:
                 # we're at an odd step, weird
-                if (dir == Adafruit_MotorHAT.FORWARD):
-                    self.currentstep += self.MICROSTEPS//2
+                if is_forward:
+                    self.currentstep += half_microstep
                 else:
-                    self.currentstep -= self.MICROSTEPS//2
+                    self.currentstep -= half_microstep
             else:
                 # go to next even step
-                if (dir == Adafruit_MotorHAT.FORWARD):
+                if is_forward:
                     self.currentstep += self.MICROSTEPS
                 else:
                     self.currentstep -= self.MICROSTEPS
-        if (style == Adafruit_MotorHAT.DOUBLE):
-            if not (self.currentstep//(self.MICROSTEPS//2) % 2):
-                # we're at an even step, weird
-                if (dir == Adafruit_MotorHAT.FORWARD):
-                    self.currentstep += self.MICROSTEPS//2
+
+        if style == Adafruit_MotorHAT.DOUBLE:
+            if is_at_even_step:
+                if is_forward:
+                    self.currentstep += half_microstep
                 else:
-                    self.currentstep -= self.MICROSTEPS//2
+                    self.currentstep -= half_microstep
             else:
                 # go to next odd step
-                if (dir == Adafruit_MotorHAT.FORWARD):
+                if is_forward:
                     self.currentstep += self.MICROSTEPS
                 else:
                     self.currentstep -= self.MICROSTEPS
-        if (style == Adafruit_MotorHAT.INTERLEAVE):
-            if (dir == Adafruit_MotorHAT.FORWARD):
-                self.currentstep += self.MICROSTEPS//2
-            else:
-                self.currentstep -= self.MICROSTEPS//2
 
-        if (style == Adafruit_MotorHAT.MICROSTEP):
-            if (dir == Adafruit_MotorHAT.FORWARD):
+        if style == Adafruit_MotorHAT.INTERLEAVE:
+            if is_forward:
+                self.currentstep += half_microstep
+            else:
+                self.currentstep -= half_microstep
+
+        if style == Adafruit_MotorHAT.MICROSTEP:
+            if is_forward:
                 self.currentstep += 1
             else:
                 self.currentstep -= 1
@@ -114,7 +120,7 @@ class Adafruit_StepperMotor:
         # set up coil energizing!
         coils = [0, 0, 0, 0]
 
-        if (style == Adafruit_MotorHAT.MICROSTEP):
+        if style == Adafruit_MotorHAT.MICROSTEP:
             if (self.currentstep >= 0) and (self.currentstep < self.MICROSTEPS):
                 coils = [1, 1, 0, 0]
             elif (self.currentstep >= self.MICROSTEPS) and (self.currentstep < self.MICROSTEPS*2):
@@ -124,17 +130,19 @@ class Adafruit_StepperMotor:
             elif (self.currentstep >= self.MICROSTEPS*3) and (self.currentstep < self.MICROSTEPS*4):
                 coils = [1, 0, 0, 1]
         else:
-            step2coils = [     [1, 0, 0, 0],
+            step2coils = [
+                [1, 0, 0, 0],
                 [1, 1, 0, 0],
                 [0, 1, 0, 0],
                 [0, 1, 1, 0],
                 [0, 0, 1, 0],
                 [0, 0, 1, 1],
                 [0, 0, 0, 1],
-                [1, 0, 0, 1] ]
-            coils = step2coils[self.currentstep//(self.MICROSTEPS//2)]
+                [1, 0, 0, 1]
+            ]
+            coils = step2coils[self.currentstep//half_microstep]
 
-        #print "coils state = " + str(coils)
+        # print("coils state = " + str(coils))
         self.MC.setPin(self.AIN2, coils[0])
         self.MC.setPin(self.BIN1, coils[1])
         self.MC.setPin(self.AIN1, coils[2])
@@ -146,24 +154,26 @@ class Adafruit_StepperMotor:
         s_per_s = self.sec_per_step
         lateststep = 0
 
-        if (stepstyle == Adafruit_MotorHAT.INTERLEAVE):
+        if stepstyle == Adafruit_MotorHAT.INTERLEAVE:
             s_per_s = s_per_s / 2.0
-        if (stepstyle == Adafruit_MotorHAT.MICROSTEP):
+
+        if stepstyle == Adafruit_MotorHAT.MICROSTEP:
             s_per_s /= self.MICROSTEPS
             steps *= self.MICROSTEPS
 
         print("{} sec per step".format(s_per_s))
 
-        for s in range(steps):
+        for _ in range(steps):
             lateststep = self.oneStep(direction, stepstyle)
             time.sleep(s_per_s)
 
-        if (stepstyle == Adafruit_MotorHAT.MICROSTEP):
+        if stepstyle == Adafruit_MotorHAT.MICROSTEP:
             # this is an edge case, if we are in between full steps, lets just keep going
             # so we end on a full step
             while (lateststep != 0) and (lateststep != self.MICROSTEPS):
                 lateststep = self.oneStep(direction, stepstyle)
                 time.sleep(s_per_s)
+
 
 class Adafruit_DCMotor:
     def __init__(self, controller, num):
@@ -171,24 +181,25 @@ class Adafruit_DCMotor:
         self.motornum = num
         pwm = in1 = in2 = 0
 
-        if (num == 0):
+        if num == 0:
                  pwm = 8
                  in2 = 9
                  in1 = 10
-        elif (num == 1):
+        elif num == 1:
                  pwm = 13
                  in2 = 12
                  in1 = 11
-        elif (num == 2):
+        elif num == 2:
                  pwm = 2
                  in2 = 3
                  in1 = 4
-        elif (num == 3):
+        elif num == 3:
                  pwm = 7
                  in2 = 6
                  in1 = 5
         else:
             raise NameError('MotorHAT Motor must be between 1 and 4 inclusive')
+            
         self.PWMpin = pwm
         self.IN1pin = in1
         self.IN2pin = in2
@@ -196,19 +207,20 @@ class Adafruit_DCMotor:
     def run(self, command):
         if not self.MC:
             return
-        if (command == Adafruit_MotorHAT.FORWARD):
+        if command == Adafruit_MotorHAT.FORWARD:
             self.MC.setPin(self.IN2pin, 0)
             self.MC.setPin(self.IN1pin, 1)
-        if (command == Adafruit_MotorHAT.BACKWARD):
+        if command == Adafruit_MotorHAT.BACKWARD:
             self.MC.setPin(self.IN1pin, 0)
             self.MC.setPin(self.IN2pin, 1)
-        if (command == Adafruit_MotorHAT.RELEASE):
+        if command == Adafruit_MotorHAT.RELEASE:
             self.MC.setPin(self.IN1pin, 0)
             self.MC.setPin(self.IN2pin, 0)
+    
     def setSpeed(self, speed):
-        if (speed < 0):
+        if speed < 0:
             speed = 0
-        if (speed > 255):
+        if speed > 255:
             speed = 255
         self.MC._pwm.setPWM(self.PWMpin, 0, speed*16)
 
@@ -236,9 +248,9 @@ class Adafruit_MotorHAT:
             raise NameError('PWM pin must be between 0 and 15 inclusive')
         if (value != 0) and (value != 1):
             raise NameError('Pin value must be 0 or 1!')
-        if (value == 0):
+        if value == 0:
             self._pwm.setPWM(pin, 0, 4096)
-        if (value == 1):
+        if value == 1:
             self._pwm.setPWM(pin, 4096, 0)
 
     def getStepper(self, steps, num):

@@ -74,11 +74,12 @@ class PWM(object):
         logger.debug("Setting PWM frequency to %d Hz" % freq)
         logger.debug("Estimated pre-scale: %d" % prescaleval)
         prescale = math.floor(prescaleval + 0.5)
+        prescale = int(math.floor(prescale))
         logger.debug("Final pre-scale: %d" % prescale)
-        oldmode = self.i2c.readU8(self.__MODE1);
+        oldmode = self.i2c.readU8(self.__MODE1)
         newmode = (oldmode & 0x7F) | 0x10             # sleep
         self.i2c.write8(self.__MODE1, newmode)        # go to sleep
-        self.i2c.write8(self.__PRESCALE, int(math.floor(prescale)))
+        self.i2c.write8(self.__PRESCALE, prescale)
         self.i2c.write8(self.__MODE1, oldmode)
         time.sleep(0.005)
         self.i2c.write8(self.__MODE1, oldmode | 0x80)
