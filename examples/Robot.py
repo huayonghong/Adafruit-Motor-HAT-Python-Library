@@ -74,6 +74,17 @@ class Robot(object):
             time.sleep(seconds)
             self.stop()
 
+    def steer(self, speed, direction):
+        """Move forward at the specified speed (0-255).  Direction is +- 100. Left is -100, Right is +100.
+        """
+        # Set motor speed and move both forward.
+        if speed > abs(direction/2):
+            speed = speed - abs(direction/2) # calibrate so total motor output never goes above 255
+        self._left_speed(speed + direction/2)
+        self._right_speed(speed - direction/2)
+        self._left.run(Adafruit_MotorHAT.FORWARD)
+        self._right.run(Adafruit_MotorHAT.FORWARD)
+        
     def backward(self, speed, seconds=None):
         """Move backward at the specified speed (0-255).  Will start moving
         backward and return unless a seconds value is specified, in which
